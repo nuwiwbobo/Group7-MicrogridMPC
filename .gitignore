@@ -1,0 +1,25 @@
+# LaTeX build artifacts
+*.aux *.log *.out *.toc *.bbl *.blg *.synctex.gz
+
+# Generated PDFs (kept out so reviewers see only canonical sources)
+reports/**/*.pdf
+program/**/*.pdf
+
+# MATLAB autosaves and build outputs
+*.asv
+*.mex*
+slprj/
+coderassumptions/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*~
+.vscode/
+.idea/
+
+# Local environment
+.env
