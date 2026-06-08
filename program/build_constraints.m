@@ -59,8 +59,9 @@ lb = zeros(2 * Np, 1);
 ub = zeros(2 * Np, 1);
 for k = 1:Np
     idx = (k - 1) * 2 + 1;
-    % ugrid(k): 0 <= ugrid <= Pgrid_max
-    lb(idx)     = 0;
+    % ugrid(k): -Pgrid_max <= ugrid <= Pgrid_max
+    % Negative = export (net metering, required for solar peak)
+    lb(idx)     = -Pgrid_max;
     ub(idx)     = Pgrid_max;
     % ubatt(k): -Pbatt_max <= ubatt <= Pbatt_max
     lb(idx + 1) = -Pbatt_max;
