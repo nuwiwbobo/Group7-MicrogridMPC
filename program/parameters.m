@@ -1,37 +1,37 @@
-function p = parameters()
-%PARAMETERS  Microgrid plant-model parameters for EMPC.
-%   P = PARAMETERS() returns a struct with all physical and tuning
-%   parameters.  Call once at the top of any script that needs them.
+function params = parameters()
+%PARAMETERS Returns all system parameters for the Microgrid EMPC project.
 %
-%   Example:
-%       p = parameters();
-%       fprintf('Battery capacity = %.2f kWh\n', p.E_nom);
+% Purpose:
+%   Centralized parameter definition for the grid-tied microgrid with PV,
+%   BESS, load, and grid import (v1: no export).
 %
-% References
-%   Cortes-Aguirre et al. 2024 (arXiv 2412.10851)
-%   Vasilj et al. 2019 (IEEE TSG 10(2):1992--2001)
+% Returns:
+%   params - struct containing all numeric parameters
 %
-% Group 7 - Microgrid Economic MPC
-% Sistem Kendali Prediktif dan Adaptif, Universitas Indonesia
+% Units & sign convention:
+%   ubatt > 0 -> discharging (SoC decreases)
+%   ugrid > 0 -> importing from grid
+%   Ppv >= 0, Pload >= 0
 
-% ----- Physical parameters -----
-p.E_nom         = 5.0;      % BESS nominal energy           [kWh]
-p.P_batt_max    = 2.5;      % BESS max (dis)charge power    [kW]
-p.P_grid_max    = 10.0;     % grid import limit             [kW]
-p.P_pv_peak     = 3.0;      % PV installed capacity         [kWp]
-p.P_load_peak   = 4.0;      % peak load estimate            [kW]
+%% BESS parameters
+params.Enom      = 5.0;    % BESS nominal energy capacity  [kWh]
+params.Pbatt_max = 2.5;    % BESS max power (charge/discharge) [kW]
+params.SoCmin    = 0.2;    % Minimum State of Charge [-]
+params.SoCmax    = 0.8;    % Maximum State of Charge [-]
+params.x0        = 0.5;    % Initial State of Charge [-]
+params.xtarget   = 0.5;    % Target terminal State of Charge [-]
 
-% ----- Battery limits -----
-p.SoC_min       = 0.2;      % lower bound                   [-]
-p.SoC_max       = 0.8;      % upper bound                   [-]
-p.x0            = 0.5;      % initial state-of-charge       [-]
+%% Grid parameters
+params.Pgrid_max = 10.0;   % Max grid import power [kW]
 
-% ----- Time -----
-p.delta_T       = 1.0;      % sampling interval             [h]
+%% PV & Load parameters
+params.Ppv_installed = 3.0; % PV installed capacity [kWp]
+params.Pload_peak    = 4.0; % Peak load power [kW]
 
-% ----- MPC tuning -----
-p.Np            = 24;       % prediction horizon            [steps]
-p.x_target      = 0.5;      % desired SoC at horizon end    [-]
-p.lambda        = 1.0;      % terminal cost weight          [$/(kWh)^2]
-p.epsilon       = 1e-3;     % Tikhonov regularizer          [-]
+%% MPC parameters
+params.dT  = 1.0;   % Sampling time [hour]
+params.Np  = 24;    % Prediction horizon [steps]
+params.lambda  = 1.0;   % Terminal cost weight [-]
+params.epsilon = 1e-3;  % Tikhonov regularisation weight [-]
+
 end
