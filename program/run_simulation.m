@@ -43,8 +43,10 @@ for k = 1:Nsim
     end_idx = min(k + Np - 1, 24);
     D_horizon = D_forecast(k:end_idx, :);
     if size(D_horizon, 1) < Np
-        % Zero-pad if horizon extends beyond available forecast
-        pad = zeros(Np - size(D_horizon, 1), 3);
+        % Replicate last values instead of zero-padding (avoids
+        % infeasibility from Ppv=0, Pload=0 forcing ugrid=-ubatt).
+        last = D_horizon(end, :);
+        pad = repmat(last, Np - size(D_horizon, 1), 1);
         D_horizon = [D_horizon; pad];
     end
 
@@ -55,6 +57,10 @@ for k = 1:Nsim
 
     options = optimoptions('quadprog', 'Display', 'off');
     U_star = quadprog(H, f, A_ineq, b_ineq, A_eq, b_eq, lb, ub, [], options);
+
+    if isempty(U_star)
+        error('QP infeasible at step %d. Check constraints.', k);
+    end
 
     % Apply first control move
     u_k = U_star(1:2);
