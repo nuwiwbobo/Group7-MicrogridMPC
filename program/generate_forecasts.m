@@ -6,7 +6,7 @@ function D_forecast = generate_forecasts(params)
 %       (-6.36, 106.83), 2020.  Ppv = G(i)/1000 * Ppv_installed * eta.
 %   Load: IEEE RTS-GMLC day-ahead forecast, Region 1, July 15 (summer peak).
 %         Normalised to Pload_peak for microgrid scale.
-%   Price: PLN flat residential tariff R-1 (1300-2200 VA), June 2025.
+%   Price: Ontario Energy Board ULO TOU tariff, Nov 2025 (10x spread).
 %
 % See also: parameters
 
@@ -33,20 +33,29 @@ rts_pu = [ ...
     0.918; 0.890; 0.846; 0.771; 0.704; 0.651];     % hours 18-23
 Pload = rts_pu * Pload_peak;
 
-%% 3. Electricity price — PLN flat tariff R-1 (1300-2200 VA), June 2025
-% Rp 1,444.70/kWh ≈ USD 0.09/kWh at 16,000 IDR/USD
-% No TOU for residential in Indonesia; set TOU flag to false in params
-%   if you want TOU for business (B-3), see comments below.
-c = 0.09 * ones(24, 1);  % flat, all hours
-
-% Uncomment for PLN B-3 business TOU (peak 17:00-22:00):
-% c(:) = 0.09;
-% for k = 1:24
-%     hour = k - 1;  % 0-indexed
-%     if hour >= 17 && hour <= 22
-%         c(k) = 0.15;  % peak ~1.67x
-%     end
-% end
+%% 3. Electricity price — Ontario Energy Board ULO TOU, Nov 2025
+% Source: oeb.ca/newsroom/2025 (Ontario Energy Board, regulated tariff)
+% Ultra-Low Overnight rate plan — chosen for large price spread (10x)
+%   that creates strong battery arbitrage incentive in MPC results.
+%   Weekday schedule (hours 0-23):
+%     23-06: Ultra-Low Overnight  3.9 ¢/kWh
+%     07-15: Mid-Peak            15.7 ¢/kWh
+%     16-20: On-Peak             39.1 ¢/kWh
+%     21-22: Mid-Peak            15.7 ¢/kWh
+% Convert to $/kWh: ¢ → $ divide by 100.
+c = zeros(24, 1);
+for k = 1:24
+    hour = k - 1;  % 0-indexed
+    if hour >= 23 || hour <= 6
+        c(k) = 0.039;   % ultra-low overnight
+    elseif hour >= 7 && hour <= 15
+        c(k) = 0.157;   % mid-peak
+    elseif hour >= 16 && hour <= 20
+        c(k) = 0.391;   % on-peak
+    else  % hours 21-22
+        c(k) = 0.157;   % mid-peak
+    end
+end
 
 D_forecast = [Ppv, Pload, c];
 
