@@ -35,13 +35,13 @@ Ppv_h   = D_horizon(:, 1);
 Pload_h = D_horizon(:, 2);
 
 %% Kesamaan: keseimbangan daya untuk setiap k
-% ugrid(k) - ubatt(k) = Pload(k) - Ppv(k)
+% Pload = Ppv + ubatt + ugrid  =>  ugrid + ubatt = Pload - Ppv
 A_eq = zeros(Np, 2 * Np);
 b_eq = zeros(Np, 1);
 for k = 1:Np
     col = (k - 1) * 2 + 1;
     A_eq(k, col)     = 1;   % ugrid(k)
-    A_eq(k, col + 1) = -1;  % ubatt(k)
+    A_eq(k, col + 1) = 1;   % ubatt(k)
     b_eq(k) = Pload_h(k) - Ppv_h(k);
 end
 
