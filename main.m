@@ -1,9 +1,9 @@
-% main.m - Microgrid Economic MPC closed-loop simulation entry point
+% main.m - Titik masuk simulasi lup-tertutup Microgrid Economic MPC
 %
-% Group 7, Sistem Kendali Prediktif dan Adaptif, Universitas Indonesia
-% Deadline: 2026-06-10 23:59 WIB
+% Kelompok 7, Sistem Kendali Prediktif dan Adaptif, Universitas Indonesia
+% Batas akhir: 2026-06-10 23:59 WIB
 %
-% Usage: from MATLAB, cd to the repo root, then run:  main
+% Penggunaan: dari MATLAB, cd ke direktori utama repo, lalu jalankan:  main
 
 fprintf('=== Microgrid Economic MPC - Group 7 ===\n');
 

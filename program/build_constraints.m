@@ -1,40 +1,40 @@
 function [A_eq, b_eq, A_ineq, b_ineq, lb, ub] = ...
     build_constraints(Np, params, x_k, D_horizon, Phi_x, Gamma_x)
-%BUILD_CONSTRAINTS Builds all QP constraint matrices for the EMPC problem.
+%BUILD_CONSTRAINTS Membangun semua matriks kendala QP untuk EMPC.
 %
-% Purpose:
-%   Constructs equality, inequality, and bound constraints for the
-%   microgrid Economic MPC quadratic program.
+% Tujuan:
+%   Membangun kendala kesamaan, ketidaksamaan, dan batas untuk
+%   program kuadratik Economic MPC microgrid.
 %
-% Inputs:
-%   Np        - prediction horizon [steps]
-%   params    - struct with fields: Pbatt_max, Pgrid_max, SoCmin, SoCmax
-%   x_k       - current state (SoC) [-]
-%   D_horizon - Np x 3 matrix [Ppv, Pload, c] for the horizon
-%   Phi_x     - Np x 1 prediction matrix
-%   Gamma_x   - Np x (2*Np) prediction matrix
+% Masukan:
+%   Np        - horizon prediksi [langkah]
+%   params    - struct dengan field: Pbatt_max, Pgrid_max, SoCmin, SoCmax
+%   x_k       - keadaan saat ini (SoC) [-]
+%   D_horizon - matriks Np x 3 [Ppv, Pload, c] untuk horizon
+%   Phi_x     - matriks prediksi Np x 1
+%   Gamma_x   - matriks prediksi Np x (2*Np)
 %
-% Outputs:
-%   A_eq, b_eq - equality constraint matrices (power balance)
-%   A_ineq, b_ineq - inequality constraint matrices (SoC bounds)
-%   lb, ub     - lower and upper bounds on decision variables
+% Keluaran:
+%   A_eq, b_eq - matriks kendala kesamaan (keseimbangan daya)
+%   A_ineq, b_ineq - matriks kendala ketidaksamaan (batas SoC)
+%   lb, ub     - batas bawah dan atas pada variabel keputusan
 %
-% Decision variable: U = [ugrid(0); ubatt(0); ...; ugrid(Np-1); ubatt(Np-1)] (2Np x 1)
+% Variabel keputusan: U = [ugrid(0); ubatt(0); ...; ugrid(Np-1); ubatt(Np-1)] (2Np x 1)
 %
-% Sign convention:
+% Konvensi tanda:
 %   ubatt > 0 -> discharging, ubatt < 0 -> charging
-%   ugrid > 0 -> importing, ugrid < 0 -> exporting (lower bound = 0)
+%   ugrid > 0 -> impor, ugrid < 0 -> ekspor
 
 Pbatt_max = params.Pbatt_max;
 Pgrid_max = params.Pgrid_max;
 SoCmin    = params.SoCmin;
 SoCmax    = params.SoCmax;
 
-%% Extract forecast columns
+%% Ekstrak kolom prakiraan
 Ppv_h   = D_horizon(:, 1);
 Pload_h = D_horizon(:, 2);
 
-%% Equality: power balance for each k
+%% Kesamaan: keseimbangan daya untuk setiap k
 % ugrid(k) - ubatt(k) = Pload(k) - Ppv(k)
 A_eq = zeros(Np, 2 * Np);
 b_eq = zeros(Np, 1);
@@ -45,22 +45,22 @@ for k = 1:Np
     b_eq(k) = Pload_h(k) - Ppv_h(k);
 end
 
-%% Inequality: SoC bounds
+%% Ketidaksamaan: batas SoC
 % X = Phi_x * x_k + Gamma_x * U
-% Lower: X >= SoCmin  ->  -Gamma_x * U <= -SoCmin + Phi_x * x_k
-% Upper: X <= SoCmax  ->   Gamma_x * U <= SoCmax - Phi_x * x_k
+% Bawah: X >= SoCmin  ->  -Gamma_x * U <= -SoCmin + Phi_x * x_k
+% Atas:  X <= SoCmax  ->   Gamma_x * U <= SoCmax - Phi_x * x_k
 A_ineq = [-Gamma_x; Gamma_x];
 b_ineq = [-SoCmin * ones(Np, 1) + Phi_x * x_k; ...
            SoCmax * ones(Np, 1) - Phi_x * x_k];
 
-%% Box bounds on ugrid and ubatt
-% Interleaved: [ugrid(0); ubatt(0); ugrid(1); ubatt(1); ...]
+%% Batas kotak pada ugrid dan ubatt
+% Berselang-seling: [ugrid(0); ubatt(0); ugrid(1); ubatt(1); ...]
 lb = zeros(2 * Np, 1);
 ub = zeros(2 * Np, 1);
 for k = 1:Np
     idx = (k - 1) * 2 + 1;
     % ugrid(k): -Pgrid_max <= ugrid <= Pgrid_max
-    % Negative = export (net metering, required for solar peak)
+    % Negatif = ekspor (net metering, diperlukan saat puncak surya)
     lb(idx)     = -Pgrid_max;
     ub(idx)     = Pgrid_max;
     % ubatt(k): -Pbatt_max <= ubatt <= Pbatt_max

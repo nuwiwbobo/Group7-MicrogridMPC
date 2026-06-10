@@ -1,37 +1,37 @@
 function params = parameters()
-%PARAMETERS Returns all system parameters for the Microgrid EMPC project.
+%PARAMETERS Mengembalikan semua parameter sistem untuk proyek EMPC Microgrid.
 %
-% Purpose:
-%   Centralized parameter definition for the grid-tied microgrid with PV,
-%   BESS, load, and grid import (v1: no export).
+% Tujuan:
+%   Definisi parameter terpusat untuk microgrid terhubung-jaringan dengan PV,
+%   BESS, beban, dan impor jaringan.
 %
-% Returns:
-%   params - struct containing all numeric parameters
+% Keluaran:
+%   params - struct berisi semua parameter numerik
 %
-% Units & sign convention:
-%   ubatt > 0 -> discharging (SoC decreases)
-%   ugrid > 0 -> importing from grid
+% Satuan & konvensi tanda:
+%   ubatt > 0 -> discharging (SoC turun)
+%   ugrid > 0 -> impor dari jaringan
 %   Ppv >= 0, Pload >= 0
 
-%% BESS parameters
-params.Enom      = 5.0;    % BESS nominal energy capacity  [kWh]
-params.Pbatt_max = 2.5;    % BESS max power (charge/discharge) [kW]
-params.SoCmin    = 0.2;    % Minimum State of Charge [-]
-params.SoCmax    = 0.8;    % Maximum State of Charge [-]
-params.x0        = 0.5;    % Initial State of Charge [-]
-params.xtarget   = 0.5;    % Target terminal State of Charge [-]
+%% Parameter BESS
+params.Enom      = 5.0;    % Kapasitas energi nominal BESS  [kWh]
+params.Pbatt_max = 2.5;    % Daya max BESS (charge/discharge) [kW]
+params.SoCmin    = 0.2;    % State of Charge minimum [-]
+params.SoCmax    = 0.8;    % State of Charge maksimum [-]
+params.x0        = 0.5;    % State of Charge awal [-]
+params.xtarget   = 0.5;    % Target State of Charge terminal [-]
 
-%% Grid parameters
-params.Pgrid_max = 10.0;   % Max grid import power [kW]
+%% Parameter Jaringan
+params.Pgrid_max = 10.0;   % Daya max impor jaringan [kW]
 
-%% PV & Load parameters
-params.Ppv_installed = 3.0; % PV installed capacity [kWp]
-params.Pload_peak    = 4.0; % Peak load power [kW]
+%% Parameter PV & Beban
+params.Ppv_installed = 3.0; % Kapasitas terpasang PV [kWp]
+params.Pload_peak    = 4.0; % Daya beban puncak [kW]
 
-%% MPC parameters
-params.dT  = 1.0;   % Sampling time [hour]
-params.Np  = 24;    % Prediction horizon [steps]
-params.lambda  = 1.0;   % Terminal cost weight [-]
-params.epsilon = 1e-3;  % Tikhonov regularisation weight [-]
+%% Parameter MPC
+params.dT  = 1.0;   % Waktu sampling [jam]
+params.Np  = 24;    % Horizon prediksi [langkah]
+params.lambda  = 1.0;   % Bobot biaya terminal [-]
+params.epsilon = 1e-3;  % Bobot regularisasi Tikhonov [-]
 
 end

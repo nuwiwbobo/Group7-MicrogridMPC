@@ -1,12 +1,12 @@
 % sanity_check.m
-% Quick end-to-end test of the Microgrid EMPC setup.
+% Tes ujung-ke-ujung cepat untuk setup EMPC Microgrid.
 %
-% Purpose:
-%   Loads parameters, builds forecast and QP for x(0)=0.5, solves with
-%   quadprog, and validates the result.
+% Tujuan:
+%   Memuat parameter, membangun prakiraan dan QP untuk x(0)=0.5,
+%   menyelesaikan dengan quadprog, dan memvalidasi hasil.
 
 clear; clc;
-fprintf('=== Microgrid EMPC Sanity Check ===\n');
+fprintf('=== Microgrid EMPC Pemeriksaan Kewarasan ===\n');
 
 params = parameters();
 Np = params.Np;
@@ -27,27 +27,27 @@ ugrid0 = U_star(1);
 ubatt0 = U_star(2);
 J_opt = 0.5 * U_star' * H * U_star + f' * U_star;
 
-fprintf('Optimal u*(0): ugrid = %.2f kW, ubatt = %.2f kW\n', ugrid0, ubatt0);
-fprintf('Optimal cost J* = %.4f\n', J_opt);
+fprintf('u*(0) optimal: ugrid = %.2f kW, ubatt = %.2f kW\n', ugrid0, ubatt0);
+fprintf('Biaya optimal J* = %.4f\n', J_opt);
 
 if min(eig(H)) > 0
-    fprintf('H is positive definite: YES\n');
+    fprintf('H definit positif: YA\n');
 else
-    fprintf('H is positive definite: NO  (min eig = %e)\n', min(eig(H)));
+    fprintf('H definit positif: TIDAK (min eig = %e)\n', min(eig(H)));
 end
 
-% Check constraint satisfaction
+% Periksa kepuasan kendala
 eq_err = norm(A_eq * U_star - b_eq, inf);
 ineq_viol = max(A_ineq * U_star - b_ineq);
 if eq_err < 1e-8 && ineq_viol < 1e-8
-    fprintf('All constraints satisfied: YES\n');
+    fprintf('Semua kendala terpenuhi: YA\n');
 else
-    fprintf('All constraints satisfied: NO  (eq_err=%.2e, ineq_viol=%.2e)\n', ...
+    fprintf('Semua kendala terpenuhi: TIDAK (eq_err=%.2e, ineq_viol=%.2e)\n', ...
         eq_err, ineq_viol);
 end
 
 if all(isfinite(U_star)) && all(isreal(U_star))
-    fprintf('Sanity check PASSED.\n');
+    fprintf('Pemeriksaan kewarasan LULUS.\n');
 else
-    fprintf('Sanity check FAILED: u_star has non-finite or complex values.\n');
+    fprintf('Pemeriksaan kewarasan GAGAL: u_star memiliki nilai tak-hingga atau kompleks.\n');
 end
