@@ -4,7 +4,7 @@ function [H, f] = build_qp(x_k, D_horizon, params, Phi_x, Gamma_x)
 % Tujuan:
 %   Membangun biaya kuadratik:
 %       J = sum_{k=0}^{Np-1} [ c(k)*ugrid(k)*dT + epsilon*||u(k)||^2 ]
-%           + lambda*(x(Np) - xtarget)^2
+%           + lambda*(x(Np) - xtarget)^2   [terminal-only]
 %
 %   Setelah substitusi X = Phi_x*x0 + Gamma_x*U + Psi_x*D:
 %       H = Hq + Hr  (2Np x 2Np)
@@ -27,9 +27,13 @@ lambda  = params.lambda;
 epsilon = params.epsilon;
 xtarget = params.xtarget;
 
-%% Biaya terminal (kuadratik)
-% Hq = 2 * lambda * Gamma_x' * Gamma_x
-Hq = 2 * lambda * (Gamma_x' * Gamma_x);
+%% Biaya terminal (kuadratik) — hanya state terakhir x(Np)
+% Rumus: lambda * (x(Np) - xtarget)^2
+% Dengan X = Phi_x * x_k + Gamma_x * U, maka:
+%   x(Np) = Phi_x(end) * x_k + Gamma_x(end, :) * U
+% Hanya baris terakhir Gamma_x yang digunakan.
+g = Gamma_x(end, :);                          % 1 x 2Np
+Hq = 2 * lambda * (g' * g);                   % 2Np x 2Np
 
 %% Regularisasi Tikhonov
 % Hr = 2 * epsilon * eye(2*Np)
@@ -38,9 +42,8 @@ Hr = 2 * epsilon * eye(2 * Np);
 H = Hq + Hr;
 
 %% Suku linear dari biaya terminal
-% fq' = 2 * lambda * (Phi_x * x_k - xtarget)' * Gamma_x
-% fq  = fq'  (vektor kolom)
-fq = (2 * lambda * (Phi_x * x_k - xtarget)' * Gamma_x)';
+% fq = 2 * lambda * (Phi_x(end) * x_k - xtarget) * g'
+fq = (2 * lambda * (Phi_x(end) * x_k - xtarget) * g)';
 
 %% Suku linear dari biaya ekonomi
 % fl = cfull * dT dengan cfull = [c(0); 0; c(1); 0; ...; c(Np-1); 0]  (2Np x 1)
