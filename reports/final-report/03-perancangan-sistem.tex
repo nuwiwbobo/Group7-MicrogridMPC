@@ -90,13 +90,23 @@ dengan $p(k) \in [0, 1]$ adalah faktor beban per unit pada jam $k$.
 
 Profil beban yang digunakan bersumber dari dataset IEEE RTS-GMLC (Reliability Test System) untuk Region 1 pada tanggal 15 Juli. Dataset ini merupakan prakiraan day-ahead dengan resolusi per jam yang telah dinormalisasi.
 
-Keseimbangan daya pada bus AC microgrid menghubungkan beban dengan PV, baterai, dan jaringan:
+Keseimbangan daya pada bus AC microgrid menghubungkan beban dengan PV, baterai, dan jaringan. Prinsip ini menyatakan bahwa total daya yang masuk ke bus harus sama dengan total daya yang keluar:
 
 \begin{equation}
 P_{\text{load}}(k) = P_{pv}(k) + u_{\text{batt}}(k) + u_{\text{grid}}(k)
 \end{equation}
 
-Persamaan ini menjadi kendala kesamaan (equality constraint) dalam QP.
+dengan konvensi tanda: $u_{\text{batt}} > 0$ menandakan discharging (baterai mengirim daya ke bus), $u_{\text{batt}} < 0$ menandakan charging (baterai menarik daya dari bus), dan $u_{\text{grid}} > 0$ menandakan impor dari jaringan listrik. Persamaan ini dapat disusun ulang untuk mengekspresikan impor jaringan sebagai fungsi dari variabel lain:
+
+\begin{equation}
+u_{\text{grid}}(k) = P_{\text{load}}(k) - P_{pv}(k) - u_{\text{batt}}(k)
+\end{equation}
+
+Dari persamaan (5) terlihat bahwa ketika baterai discharge ($u_{\text{batt}} > 0$), daya yang perlu diimpor dari jaringan berkurang secara proporsional. Sebaliknya, ketika baterai charge ($u_{\text{batt}} < 0$), impor jaringan meningkat untuk memasok daya tambahan ke baterai. Jika $u_{\text{batt}} > P_{\text{load}} - P_{pv}$, maka $u_{\text{grid}} < 0$ yang berarti sistem mengekspor daya ke jaringan (net metering). Dalam bentuk kendala kesamaan QP:
+
+\begin{equation}
+u_{\text{grid}}(k) + u_{\text{batt}}(k) = P_{\text{load}}(k) - P_{pv}(k)
+\end{equation}
 
 \subsubsection{Model State-Space Lengkap}
 
@@ -184,7 +194,7 @@ Terdapat tiga jenis kendala dalam QP:
 
 \begin{enumerate}
     \item Keseimbangan daya (kesamaan, $N_p$ persamaan):
-    $$u_{\text{grid}}(k) - u_{\text{batt}}(k) = P_{\text{load}}(k) - P_{pv}(k)$$
+    $$u_{\text{grid}}(k) + u_{\text{batt}}(k) = P_{\text{load}}(k) - P_{pv}(k)$$
     
     \item Batas SoC (ketidaksamaan, $2N_p$ pertidaksamaan):
     $$\text{SoC}_{\text{min}} \leq x(k) \leq \text{SoC}_{\text{max}}$$
