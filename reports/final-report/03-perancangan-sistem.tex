@@ -1,0 +1,220 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{booktabs}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\DeclareMathOperator{\SOC}{SoC}
+\title{Microgrid Economic MPC --- Perancangan Sistem}
+\author{Kelompok 7 --- SKPA 2026, Universitas Indonesia}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+
+
+\section{Perancangan Sistem}
+
+\subsection{Pemodelan Matematis Komponen Microgrid}
+
+\subsubsection{Pemodelan PV}
+
+Panel surya (photovoltaic, PV) merupakan sumber energi terbarukan yang mengkonversi radiasi matahari menjadi energi listrik. Daya keluaran PV pada waktu $k$ dimodelkan sebagai fungsi dari iradiansi global pada bidang panel dan kapasitas terpasang sistem:
+
+\begin{equation}
+P_{pv}(k) = \frac{G(k)}{1000} \cdot P_{pv}^{\text{installed}} \cdot \eta_{\text{sys}} \quad [\text{kW}]
+\end{equation}
+
+dengan:
+\begin{itemize}
+    \item $G(k)$ = iradiansi global pada bidang panel [W/m\textsuperscript{2}] pada jam $k$
+    \item $P_{pv}^{\text{installed}}$ = kapasitas terpasang PV [kWp]
+    \item $\eta_{\text{sys}}$ = efisiensi sistem (rugi inverter, kabel, suhu, kotoran)
+\end{itemize}
+
+Efisiensi sistem ditetapkan sebesar $\eta_{\text{sys}} = 0.85$ (85\%), yang merupakan nilai tipikal untuk sistem PV grid-tied sesuai standar IEC 61724.
+
+Data iradiansi yang digunakan dalam proyek ini bersumber dari PVGIS-ERA5 (Joint Research Centre, European Commission) untuk lokasi Depok, Jawa Barat (koordinat $-6.36^\circ$ LS, $106.83^\circ$ BT). Data yang digunakan adalah rata-rata tahunan iradiansi global per jam pada permukaan dengan kemiringan $15^\circ$ menghadap utara (optimal untuk lokasi ekuator).
+
+Dalam konteks pemodelan Economic MPC, PV diperlakukan sebagai gangguan eksogen (disturbance) yang nilainya sudah diketahui sebelumnya melalui prakiraan (perfect forecast pada v1).
+
+\subsubsection{Pemodelan Baterai (BESS)}
+
+Battery Energy Storage System (BESS) dimodelkan sebagai akumulator energi dengan state tunggal: State of Charge (SoC). Model matematis yang digunakan adalah integrator murni:
+
+\begin{equation}
+x(k+1) = x(k) - \frac{\Delta T}{E_{\text{nom}}} \cdot u_{\text{batt}}(k)
+\end{equation}
+
+dengan:
+\begin{itemize}
+    \item $x(k) \in [0, 1]$ = SoC pada waktu $k$
+    \item $u_{\text{batt}}(k)$ = daya baterai [kW], positif = discharging, negatif = charging
+    \item $\Delta T = 1$ jam = waktu sampling
+    \item $E_{\text{nom}} = 5.0$ kWh = kapasitas energi nominal BESS
+\end{itemize}
+
+Parameter operasi BESS:
+
+\begin{center}
+\begin{tabular}{lrl}
+\toprule
+Parameter & Nilai & Deskripsi \\
+\midrule
+$E_{\text{nom}}$ & 5.0 kWh & Kapasitas energi nominal \\
+$P_{\text{batt,max}}$ & 2.5 kW & Daya maksimum charge/discharge \\
+SoC$_{\text{min}}$ & 0.2 (20\%) & Batas bawah SoC \\
+SoC$_{\text{max}}$ & 0.8 (80\%) & Batas atas SoC \\
+$x_0$ & 0.5 (50\%) & SoC awal \\
+$x_{\text{target}}$ & 0.5 (50\%) & SoC target terminal \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Batas operasi SoC $\in [0.2, 0.8]$ dan $u_{\text{batt}} \in [-2.5, 2.5]$ kW diterapkan sebagai kendala hard constraint dalam optimasi QP.
+
+Penyederhanaan v1: Efisiensi round-trip baterai dimodelkan 100\% di dinamika (rugi-rugi dimasukkan ke biaya melalui regularisasi Tikhonov). Asumsi ini lazim ditemukan di literatur EMPC microgrid \cite{cortes2024} karena menjaga konveksitas QP.
+
+\subsubsection{Pemodelan Beban}
+
+Beban listrik dimodelkan sebagai profil permintaan daya yang bervariasi terhadap waktu. Dalam proyek ini, profil beban dinormalisasi terhadap beban puncak $P_{\text{load,peak}} = 4.0$ kW:
+
+\begin{equation}
+P_{\text{load}}(k) = p(k) \cdot P_{\text{load,peak}} \quad [\text{kW}]
+\end{equation}
+
+dengan $p(k) \in [0, 1]$ adalah faktor beban per unit pada jam $k$.
+
+Profil beban yang digunakan bersumber dari dataset IEEE RTS-GMLC (Reliability Test System) untuk Region 1 pada tanggal 15 Juli. Dataset ini merupakan prakiraan day-ahead dengan resolusi per jam yang telah dinormalisasi.
+
+Keseimbangan daya pada bus AC microgrid menghubungkan beban dengan PV, baterai, dan jaringan:
+
+\begin{equation}
+P_{\text{load}}(k) = P_{pv}(k) + u_{\text{batt}}(k) + u_{\text{grid}}(k)
+\end{equation}
+
+Persamaan ini menjadi kendala kesamaan (equality constraint) dalam QP.
+
+\subsubsection{Model State-Space Lengkap}
+
+Seluruh komponen di atas dirangkum dalam model discrete-time Linear Time-Invariant (LTI) state-space:
+
+State:
+$$x(k) = \text{SoC}(k) \in \mathbb{R}$$
+
+Control input:
+$$u(k) = \begin{bmatrix} u_{\text{grid}}(k) \\ u_{\text{batt}}(k) \end{bmatrix} \in \mathbb{R}^2$$
+
+Gangguan (disturbance):
+$$d(k) = \begin{bmatrix} P_{pv}(k) \\ P_{\text{load}}(k) \\ c(k) \end{bmatrix} \in \mathbb{R}^3$$
+
+Model dinamika:
+\begin{equation}
+x(k+1) = A x(k) + B u(k) + E d(k)
+\end{equation}
+
+Model keluaran:
+\begin{equation}
+y(k) = C x(k) + D u(k) + F_e d(k)
+\end{equation}
+
+dengan matriks-matriks:
+
+$$A = 1, \quad B = \begin{bmatrix} 0 & -\frac{\Delta T}{E_{\text{nom}}} \end{bmatrix}, \quad E = \begin{bmatrix} 0 & 0 & 0 \end{bmatrix}$$
+
+$$C = \begin{bmatrix} 0 \\ 1 \end{bmatrix}, \quad D = \begin{bmatrix} 1 & -1 \\ 0 & 0 \end{bmatrix}, \quad F_e = \begin{bmatrix} -1 & 1 & 0 \\ 0 & 0 & 0 \end{bmatrix}$$
+
+Penjelasan matriks:
+\begin{itemize}
+    \item $A = 1$: SoC adalah integrator murni
+    \item $B = [0,\; -\Delta T/E_{\text{nom}}]$: hanya $u_{\text{batt}}$ yang mempengaruhi SoC
+    \item $E = [0,0,0]$: gangguan tidak mempengaruhi state di v1
+    \item Baris 1 $C$ dan $D$: keluaran pertama adalah $u_{\text{grid}}$
+    \item Baris 2 $C$ dan $D$: keluaran kedua adalah SoC
+\end{itemize}
+
+\subsection{Formulasi Economic MPC}
+
+\subsubsection{Matriks Prediksi}
+
+Dengan $A = 1$, prediksi keadaan $i$ langkah ke depan adalah:
+
+$$x(k+i) = x(k) + \sum_{j=0}^{i-1} B \cdot u(k+j)$$
+
+Dalam bentuk bertumpuk (stacked) untuk seluruh horizon $N_p = 24$:
+
+\begin{equation}
+X = \Phi_x \cdot x(k) + \Gamma_x \cdot U
+\end{equation}
+
+dengan:
+\begin{itemize}
+    \item $\Phi_x = [1, 1, \ldots, 1]^{\mathsf T} \in \mathbb{R}^{N_p}$ 
+    \item $\Gamma_x$ = matriks blok-Toeplitz segitiga bawah $N_p \times 2N_p$:
+    $$\Gamma_x = \begin{bmatrix} B & 0 & \cdots & 0 \\ B & B & \cdots & 0 \\ \vdots & \vdots & \ddots & \vdots \\ B & B & \cdots & B \end{bmatrix}$$
+\end{itemize}
+
+\subsubsection{Biaya Ekonomi}
+
+Fungsi biaya EMPC terdiri dari tiga suku:
+
+\begin{enumerate}
+    \item Biaya tahap (stage cost) — linier terhadap $u_{\text{grid}}$:
+    $$J_{\text{econ}} = \sum_{k=0}^{N_p-1} c(k) \cdot u_{\text{grid}}(k) \cdot \Delta T$$
+    
+    \item Biaya terminal — kuadratik, untuk mengembalikan SoC ke target:
+    $$J_{\text{term}} = \lambda \cdot (x(N_p) - x_{\text{target}})^2$$
+    
+    \item Regularisasi Tikhonov — untuk menjamin H definit positif:
+    $$J_{\text{reg}} = \varepsilon \cdot \sum_{k=0}^{N_p-1} \|u(k)\|^2$$
+\end{enumerate}
+
+Total: $J = J_{\text{econ}} + J_{\text{term}} + J_{\text{reg}}$, yang setelah diekspansi menghasilkan bentuk QP standar:
+
+\begin{equation}
+J = \frac{1}{2} U^{\mathsf T} H U + f^{\mathsf T} U
+\end{equation}
+
+\subsubsection{Kendala}
+
+Terdapat tiga jenis kendala dalam QP:
+
+\begin{enumerate}
+    \item Keseimbangan daya (kesamaan, $N_p$ persamaan):
+    $$u_{\text{grid}}(k) - u_{\text{batt}}(k) = P_{\text{load}}(k) - P_{pv}(k)$$
+    
+    \item Batas SoC (ketidaksamaan, $2N_p$ pertidaksamaan):
+    $$\text{SoC}_{\text{min}} \leq x(k) \leq \text{SoC}_{\text{max}}$$
+    
+    \item Batas kotak (box bounds, $4N_p$ batas):
+    $$-P_{\text{grid,max}} \leq u_{\text{grid}}(k) \leq P_{\text{grid,max}}$$
+    $$-P_{\text{batt,max}} \leq u_{\text{batt}}(k) \leq P_{\text{batt,max}}$$
+\end{enumerate}
+
+\subsection{Sumber Data}
+
+\subsubsection{Data PV: PVGIS-ERA5}
+
+Data iradiansi matahari diperoleh dari PVGIS (Photovoltaic Geographical Information System), Joint Research Centre, Uni Eropa. Dataset yang digunakan adalah rata-rata tahunan iradiansi global per jam pada kemiringan 15$^\circ$ untuk lokasi Depok ($-6.36^\circ$ S, $106.83^\circ$ E) tahun 2020 (8784 titik data).
+
+\subsubsection{Data Beban: IEEE RTS-GMLC}
+
+Profil beban menggunakan dataset RTS-GMLC (Reliability Test System - Grid Modernization Laboratory Consortium), Region 1, tanggal 15 Juli 2020. Data berupa prakiraan day-ahead per jam yang dinormalisasi terhadap beban puncak.
+
+\subsubsection{Data Harga: Ontario ULO TOU}
+
+Tarif listrik menggunakan Time-of-Use Ontario Energy Board Ultra-Low Overnight (Nov 2025) dengan selisih harga 10$\times$ antara off-peak (3.9{\textcent}/kWh) dan on-peak (39.1{\textcent}/kWh) untuk menciptakan insentif arbitrase baterai yang terlihat jelas.
+
+\begin{thebibliography}{9}
+\bibitem{cortes2024} C. Cortes-Aguirre, Y.-A. Chen, A. Ghosh, J. Kleissl, and A. Khurram, ``Economic MPC with an Online Reference Trajectory for Battery Scheduling Considering Demand Charge Management,'' arXiv:2412.10851, Dec. 2024.
+\bibitem{vasilj2019} J. Vasilj et al., ``Day-Ahead Scheduling and Real-Time Economic MPC of CHP Unit in Microgrid With Smart Buildings,'' IEEE Trans. Smart Grid, vol. 10, no. 2, pp. 1992--2001, 2019.
+\bibitem{ellis2014} M. Ellis, H. Durand, and P. D. Christofides, ``A tutorial review of economic model predictive control methods,'' J. Process Control, vol. 24, no. 8, pp. 1156--1178, 2014.
+\bibitem{rawlings2017} J. B. Rawlings, D. Q. Mayne, and M. M. Diehl, Model Predictive Control: Theory, Computation, and Design, 2nd ed. Nob Hill Publishing, 2017.
+\end{thebibliography}
+
+
+
+\end{document}
